@@ -1,0 +1,122 @@
+import heapq
+import copy
+
+def is_solvable(puzzle):
+    """
+    Check if the puzzle is solvable.
+    """
+    flat_puzzle = [tile for row in puzzle for tile in row if tile != 0]
+    inversions = 0
+    for i in range(len(flat_puzzle)):
+        for j in range(i + 1, len(flat_puzzle)):
+            if flat_puzzle[i] > flat_puzzle[j]:
+                inversions += 1
+    return inversions % 2 == 0
+
+def find_blank_position(puzzle):
+    """
+    Locate the position of the blank space (0).
+    """
+    for i in range(len(puzzle)):
+        for j in range(len(puzzle[0])):
+            if puzzle[i][j] == 0:
+                return i, j
+
+def generate_neighbors(state):
+    """
+    Generate all possible neighbor states by moving the blank space.
+    """
+    neighbors = []
+    directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+    blank_row, blank_col = find_blank_position(state)
+
+    for dr, dc in directions:
+        new_row, new_col = blank_row + dr, blank_col + dc
+        if 0 <= new_row < 3 and 0 <= new_col < 3:
+            new_state = copy.deepcopy(state)
+            new_state[blank_row][blank_col], new_state[new_row][new_col] = (
+                new_state[new_row][new_col],
+                new_state[blank_row][blank_col],
+            )
+            neighbors.append(new_state)
+
+    return neighbors
+
+def heuristic(state, goal):
+    """
+    Calculate the heuristic (Manhattan distance) of the current state.
+    """
+    distance = 0
+    for i in range(3):
+        for j in range(3):
+            if state[i][j] != 0:
+                value = state[i][j]
+                target_row, target_col = divmod(goal.index(value), 3)
+                distance += abs(target_row - i) + abs(target_col - j)
+    return distance
+
+def flatten(puzzle):
+    """
+    Flatten a 2D list into a 1D tuple.
+    """
+    return tuple(tile for row in puzzle for tile in row)
+
+def solve_puzzle(start, goal):
+    """
+    Solve the 8-puzzle problem using the A* search algorithm.
+    """
+    if not is_solvable(start):
+        return None, "Unsolvable puzzle"
+
+    goal_flat = flatten(goal)
+    goal_positions = {value: idx for idx, value in enumerate(goal_flat)}
+
+    start_flat = flatten(start)
+    visited = set()
+    priority_queue = []
+
+    heapq.heappush(priority_queue, (0, start, []))
+
+    while priority_queue:
+        _, current_state, path = heapq.heappop(priority_queue)
+
+        current_flat = flatten(current_state)
+        if current_flat == goal_flat:
+            return path + [current_state], "Solved"
+
+        if current_flat in visited:
+            continue
+
+        visited.add(current_flat)
+
+        for neighbor in generate_neighbors(current_state):
+            if flatten(neighbor) not in visited:
+                new_path = path + [current_state]
+                cost = len(new_path) + heuristic(neighbor, goal_positions)
+                heapq.heappush(priority_queue, (cost, neighbor, new_path))
+
+    return None, "No solution"
+
+# Example usage
+if __name__ == "__main__":
+    start_state = [
+        [1, 2, 3],
+        [4, 0, 5],
+        [7, 8, 6],
+    ]
+
+    goal_state = [
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 0],
+    ]
+
+    solution, message = solve_puzzle(start_state, goal_state)
+    if solution:
+        print("Steps to solve the puzzle:")
+        for step in solution:
+            for row in step:
+                print(row)
+            print()
+    else:
+        print(message)
